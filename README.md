@@ -19,11 +19,19 @@ Glide is a lightweight native macOS menu-bar utility. It reverses conventional m
 - Uses no network connection, analytics, or third-party dependencies.
 - Remains idle until a scroll event occurs.
 
+## What's new in v0.2.1
+
+- Preserves original mouse-wheel scroll magnitudes, including fractional deltas, when reversing direction.
+- Fixes a Core Graphics setter side effect that could change scroll amounts.
+- Adds regression checks for both axes, fractional deltas, AppKit scroll values, reversing twice, and unchanged continuous events.
+
+Scroll reversal remains system-wide, including game hotbars. The reported Minecraft hotbar behavior still needs verification in live gameplay.
+
 ## Installation
 
-A signed and notarized release is not available yet. The current `v0.2.0` beta is an unsigned Apple Silicon build intended for early testing.
+A signed and notarized release is not available yet. The current `v0.2.1` beta is an unsigned Apple Silicon build intended for early testing.
 
-1. Download `Glide-0.2.0-arm64.dmg` from [GitHub Releases](https://github.com/jiasshengg/glide/releases).
+1. Download `Glide-0.2.1-arm64.dmg` from [GitHub Releases](https://github.com/jiasshengg/glide/releases).
 2. Open the DMG and drag Glide into Applications.
 3. Try to open Glide from Applications.
 4. If macOS blocks it, open **System Settings → Privacy & Security**, scroll to Security, and select **Open Anyway**.

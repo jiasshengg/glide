@@ -1,4 +1,4 @@
-import CoreGraphics
+import AppKit
 
 enum CheckFailure: Error, CustomStringConvertible {
     case mismatch(String)
@@ -14,6 +14,7 @@ enum CheckFailure: Error, CustomStringConvertible {
 enum GlideChecks {
     static func main() throws {
         try reversesLineBasedScrollAxes()
+        try preservesFractionalScrollMagnitudes()
         try leavesContinuousScrollEventsUnchanged()
         print("Glide checks passed")
     }
@@ -58,10 +59,56 @@ enum GlideChecks {
         }
 
         event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
-        let originalDelta = event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1)
+        let originalData = event.data
 
         try expect(!ScrollEventTransformer.reverseLineBasedScroll(event), "Continuous event was incorrectly reversed")
-        try expect(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1) == originalDelta, "Continuous event was modified")
+        try expect(event.data == originalData, "Continuous event was modified")
+    }
+
+    private static func preservesFractionalScrollMagnitudes() throws {
+        for lineDelta: Int32 in [0, 3, -3] {
+            guard let event = CGEvent(
+                scrollWheelEvent2Source: nil,
+                units: .line,
+                wheelCount: 2,
+                wheel1: lineDelta,
+                wheel2: -lineDelta,
+                wheel3: 0
+            ) else {
+                throw CheckFailure.mismatch("Could not create a fractional scroll event")
+            }
+
+            event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: 1.5)
+            event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: -0.75)
+            event.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: 17)
+            event.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: -9)
+            let fields: [CGEventField] = [
+                .scrollWheelEventDeltaAxis1, .scrollWheelEventDeltaAxis2,
+                .scrollWheelEventFixedPtDeltaAxis1, .scrollWheelEventFixedPtDeltaAxis2,
+                .scrollWheelEventPointDeltaAxis1, .scrollWheelEventPointDeltaAxis2
+            ]
+            let originalValues = fields.map { event.getIntegerValueField($0) }
+            guard let originalScroll = NSEvent(cgEvent: event) else {
+                throw CheckFailure.mismatch("Could not convert the original wheel event")
+            }
+            let originalX = originalScroll.scrollingDeltaX
+            let originalY = originalScroll.scrollingDeltaY
+
+            try expect(ScrollEventTransformer.reverseLineBasedScroll(event), "Fractional wheel event was not reversed")
+            for (field, original) in zip(fields, originalValues) {
+                try expect(event.getIntegerValueField(field) == -original, "Scroll magnitude changed for \(field)")
+            }
+            guard let reversedScroll = NSEvent(cgEvent: event) else {
+                throw CheckFailure.mismatch("Could not convert the reversed wheel event")
+            }
+            try expect(reversedScroll.scrollingDeltaX == -originalX, "AppKit horizontal scroll magnitude changed")
+            try expect(reversedScroll.scrollingDeltaY == -originalY, "AppKit vertical scroll magnitude changed")
+
+            ScrollEventTransformer.reverseLineBasedScroll(event)
+            for (field, original) in zip(fields, originalValues) {
+                try expect(event.getIntegerValueField(field) == original, "Reversing twice did not restore \(field)")
+            }
+        }
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {

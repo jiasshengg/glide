@@ -82,7 +82,11 @@ final class ScrollEventTap {
 enum ScrollEventTransformer {
     private static let scrollFields: [CGEventField] = [
         .scrollWheelEventDeltaAxis1,
-        .scrollWheelEventDeltaAxis2
+        .scrollWheelEventDeltaAxis2,
+        .scrollWheelEventFixedPtDeltaAxis1,
+        .scrollWheelEventFixedPtDeltaAxis2,
+        .scrollWheelEventPointDeltaAxis1,
+        .scrollWheelEventPointDeltaAxis2
     ]
 
     @discardableResult
@@ -92,8 +96,10 @@ enum ScrollEventTransformer {
             return false
         }
 
-        for field in scrollFields {
-            let value = event.getIntegerValueField(field)
+        // Setting line deltas recalculates fixed-point and point deltas. Capture
+        // every original value first, then restore their magnitudes in this order.
+        let originalValues = scrollFields.map { event.getIntegerValueField($0) }
+        for (field, value) in zip(scrollFields, originalValues) {
             event.setIntegerValueField(field, value: -value)
         }
         return true
